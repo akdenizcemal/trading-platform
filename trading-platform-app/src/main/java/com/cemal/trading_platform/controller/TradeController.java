@@ -7,6 +7,7 @@ import com.cemal.trading_platform.model.Trade;
 import com.cemal.trading_platform.model.User;
 import com.cemal.trading_platform.service.TradeService;
 import jakarta.validation.Valid;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -16,13 +17,19 @@ import java.util.List;
 
 @RestController
 public class TradeController {
+
     private final TradeService tradeService;
+
     public TradeController(TradeService tradeService) {
         this.tradeService = tradeService;
     }
+
     @GetMapping("/trades")
-    public List<TradeResponse> getAllTrades() {
-        return tradeService.getAllTrades()
+    public List<TradeResponse> getAllTrades(Authentication authentication) {
+
+        String username = authentication.getName();
+
+        return tradeService.getAllTrades(username)
                 .stream()
                 .map(trade -> new TradeResponse(
                         trade.getUser().getUsername(),
@@ -34,8 +41,11 @@ public class TradeController {
                 ))
                 .toList();
     }
+
     @PostMapping("/trades")
-    public TradeResponse addTrade(@Valid @RequestBody TradeRequest request){
+    public TradeResponse addTrade(
+            @Valid @RequestBody TradeRequest request) {
+
         Trade trade = new Trade();
 
         trade.setShares(request.getShares());
@@ -51,6 +61,7 @@ public class TradeController {
         trade.setStock(stock);
 
         Trade savedTrade = tradeService.addTrade(trade);
+
         return new TradeResponse(
                 savedTrade.getUser().getUsername(),
                 savedTrade.getStock().getName(),
@@ -59,7 +70,5 @@ public class TradeController {
                 savedTrade.getPrice(),
                 savedTrade.getTradeType()
         );
-
     }
-
 }

@@ -15,49 +15,79 @@ import java.util.Optional;
 @Service
 public class TradeService {
 
-    TradeRepository tradeRepository;
-    UserRepository userRepository;
-    StockRepository stockRepository;
-    HoldingRepository holdingRepository;
-    public TradeService(TradeRepository tradeRepository, UserRepository userRepository, StockRepository stockRepository, HoldingRepository holdingRepository) {
+    private final TradeRepository tradeRepository;
+    private final UserRepository userRepository;
+    private final StockRepository stockRepository;
+    private final HoldingRepository holdingRepository;
+
+    public TradeService(
+            TradeRepository tradeRepository,
+            UserRepository userRepository,
+            StockRepository stockRepository,
+            HoldingRepository holdingRepository) {
+
         this.tradeRepository = tradeRepository;
         this.userRepository = userRepository;
         this.stockRepository = stockRepository;
         this.holdingRepository = holdingRepository;
     }
-    public List<Trade> getAllTrades(){
-        return tradeRepository.findAll();
+
+    public List<Trade> getAllTrades(String username) {
+        return tradeRepository.findByUserUsername(username);
     }
+
     public Trade addTrade(Trade trade) {
+
         User user = userRepository.findById(trade.getUser().getId())
                 .orElseThrow(() -> new TradeException("Invalid user ID"));
-        Stock stock = stockRepository.findById(trade.getStock().getId()).orElseThrow(() -> new TradeException("Invalid stock ID"));
+
+        Stock stock = stockRepository.findById(trade.getStock().getId())
+                .orElseThrow(() -> new TradeException("Invalid stock ID"));
+
         trade.setUser(user);
         trade.setStock(stock);
+
         if (trade.getShares() <= 0) {
             throw new TradeException("Shares should be greater than zero");
         }
+
         if (trade.getTradeType() == null) {
             throw new TradeException("Trade type is required");
         }
+
         trade.setPrice(stock.getPrice());
-        BigDecimal totalCost = stock.getPrice().multiply(BigDecimal.valueOf(trade.getShares()));
+
+        BigDecimal totalCost =
+                stock.getPrice().multiply(
+                        BigDecimal.valueOf(trade.getShares())
+                );
+
         if (trade.getTradeType() == TradeType.BUY) {
+
             if (user.getBalance().compareTo(totalCost) < 0) {
                 throw new TradeException("Insufficient funds");
             }
+
             Optional<Holding> holding =
                     holdingRepository.findByUserIdAndStockId(
                             user.getId(),
                             stock.getId()
                     );
+
             Holding userHolding = holding.orElse(null);
+
             if (userHolding != null) {
-                userHolding.setShares(userHolding.getShares() + trade.getShares());
+
+                userHolding.setShares(
+                        userHolding.getShares() + trade.getShares()
+                );
+
                 holdingRepository.save(userHolding);
-            }
-            else {
+
+            } else {
+
                 Holding newHolding = new Holding();
+
                 newHolding.setUser(user);
                 newHolding.setStock(stock);
                 newHolding.setShares(trade.getShares());
@@ -65,39 +95,48 @@ public class TradeService {
                 holdingRepository.save(newHolding);
             }
 
-            user.setBalance(user.getBalance().subtract(totalCost));
+            user.setBalance(
+                    user.getBalance().subtract(totalCost)
+            );
         }
 
-        else if(trade.getTradeType() == TradeType.SELL){
+        else if (trade.getTradeType() == TradeType.SELL) {
 
             Optional<Holding> holding =
                     holdingRepository.findByUserIdAndStockId(
                             user.getId(),
                             stock.getId()
                     );
+
             Holding userHolding = holding.orElse(null);
+
             if (userHolding != null) {
+
                 if (userHolding.getShares() < trade.getShares()) {
                     throw new TradeException("Not enough shares");
                 }
-                    userHolding.setShares(userHolding.getShares() - trade.getShares());
+
+                userHolding.setShares(
+                        userHolding.getShares() - trade.getShares()
+                );
+
                 if (userHolding.getShares() == 0) {
                     holdingRepository.delete(userHolding);
                 } else {
                     holdingRepository.save(userHolding);
                 }
 
-
+            } else {
+                throw new TradeException("Not owned");
             }
-            else  {
-               throw new TradeException("Not owned");
-            }
-            user.setBalance(user.getBalance().add(totalCost));
 
+            user.setBalance(
+                    user.getBalance().add(totalCost)
+            );
         }
-       userRepository.save(user);
-       return  tradeRepository.save(trade);
 
+        userRepository.save(user);
+
+        return tradeRepository.save(trade);
     }
-
 }

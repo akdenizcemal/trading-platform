@@ -1,5 +1,4 @@
-
-        package com.cemal.trading_platform;
+package com.cemal.trading_platform;
 
 import com.cemal.trading_platform.model.Stock;
 import com.cemal.trading_platform.model.User;
@@ -10,49 +9,60 @@ import com.cemal.trading_platform.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.web.context.WebApplicationContext;
 
 import java.math.BigDecimal;
 
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
+import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @SpringBootTest
-@AutoConfigureMockMvc(addFilters = false)
-@WithMockUser(username = "testuser")
 class TradeControllerIntegrationTest {
 
+    @Autowired
+    private WebApplicationContext context;
 
     @Autowired
-    MockMvc mockMvc;
+    private UserRepository userRepository;
 
     @Autowired
-    UserRepository userRepository;
+    private StockRepository stockRepository;
 
     @Autowired
-    StockRepository stockRepository;
+    private HoldingRepository holdingRepository;
 
     @Autowired
-    HoldingRepository holdingRepository;
+    private TradeRepository tradeRepository;
 
     @Autowired
-    TradeRepository tradeRepository;
+    private PasswordEncoder passwordEncoder;
 
-    @Autowired
-    PasswordEncoder passwordEncoder;
+    private MockMvc mockMvc;
 
-    User user;
-    Stock stock;
+    private User user;
+    private Stock stock;
 
     @BeforeEach
-    void cleanDatabase() {
+    void setup() {
+
+        mockMvc = MockMvcBuilders
+                .webAppContextSetup(context)
+                .apply(springSecurity())
+                .defaultRequest(
+                        get("/")
+                                .with(user("testuser"))
+                )
+                .build();
+
         tradeRepository.deleteAll();
         holdingRepository.deleteAll();
         userRepository.deleteAll();
@@ -74,6 +84,7 @@ class TradeControllerIntegrationTest {
 
     @Test
     void addTradeThroughController() throws Exception {
+
         String json = """
                 {
                     "userId": %d,
@@ -98,6 +109,7 @@ class TradeControllerIntegrationTest {
 
     @Test
     void rejectTradeWithZeroShares() throws Exception {
+
         String json = """
                 {
                     "userId": %d,
@@ -117,6 +129,7 @@ class TradeControllerIntegrationTest {
 
     @Test
     void rejectTradeWithNegativeShares() throws Exception {
+
         String json = """
                 {
                     "userId": %d,
@@ -136,6 +149,7 @@ class TradeControllerIntegrationTest {
 
     @Test
     void rejectTradeWithMissingTradeType() throws Exception {
+
         String json = """
                 {
                     "userId": %d,
@@ -154,6 +168,7 @@ class TradeControllerIntegrationTest {
 
     @Test
     void rejectTradeWithInvalidUserId() throws Exception {
+
         String json = """
                 {
                     "userId": 9999,
@@ -173,6 +188,7 @@ class TradeControllerIntegrationTest {
 
     @Test
     void rejectTradeWithInvalidStockId() throws Exception {
+
         String json = """
                 {
                     "userId": %d,
@@ -192,6 +208,7 @@ class TradeControllerIntegrationTest {
 
     @Test
     void insufficientFunds() throws Exception {
+
         String json = """
                 {
                     "userId": %d,
@@ -211,6 +228,7 @@ class TradeControllerIntegrationTest {
 
     @Test
     void stockNotOwned() throws Exception {
+
         String json = """
                 {
                     "userId": %d,
@@ -230,6 +248,7 @@ class TradeControllerIntegrationTest {
 
     @Test
     void getAllTrades() throws Exception {
+
         String json = """
                 {
                     "userId": %d,
@@ -240,10 +259,11 @@ class TradeControllerIntegrationTest {
                 """.formatted(user.getId(), stock.getId());
 
         mockMvc.perform(
-                post("/trades")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(json)
-        );
+                        post("/trades")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(json)
+                )
+                .andExpect(status().isOk());
 
         mockMvc.perform(get("/trades"))
                 .andExpect(status().isOk())
@@ -257,6 +277,7 @@ class TradeControllerIntegrationTest {
 
     @Test
     void getAllTradesWhenNoTradesExist() throws Exception {
+
         mockMvc.perform(get("/trades"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$").isEmpty());
@@ -264,7 +285,8 @@ class TradeControllerIntegrationTest {
 
     @Test
     void getAllTradesWhenMultipleTradesExist() throws Exception {
-        String json = """
+
+        String firstJson = """
                 {
                     "userId": %d,
                     "stockId": %d,
@@ -274,12 +296,13 @@ class TradeControllerIntegrationTest {
                 """.formatted(user.getId(), stock.getId());
 
         mockMvc.perform(
-                post("/trades")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(json)
-        );
+                        post("/trades")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(firstJson)
+                )
+                .andExpect(status().isOk());
 
-        json = """
+        String secondJson = """
                 {
                     "userId": %d,
                     "stockId": %d,
@@ -289,10 +312,11 @@ class TradeControllerIntegrationTest {
                 """.formatted(user.getId(), stock.getId());
 
         mockMvc.perform(
-                post("/trades")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(json)
-        );
+                        post("/trades")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(secondJson)
+                )
+                .andExpect(status().isOk());
 
         mockMvc.perform(get("/trades"))
                 .andExpect(status().isOk())
@@ -305,6 +329,7 @@ class TradeControllerIntegrationTest {
 
     @Test
     void getHoldingsAfterBuyingStock() throws Exception {
+
         String json = """
                 {
                     "userId": %d,
@@ -315,10 +340,11 @@ class TradeControllerIntegrationTest {
                 """.formatted(user.getId(), stock.getId());
 
         mockMvc.perform(
-                post("/trades")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(json)
-        );
+                        post("/trades")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(json)
+                )
+                .andExpect(status().isOk());
 
         mockMvc.perform(get("/holdings"))
                 .andExpect(status().isOk())
@@ -331,6 +357,7 @@ class TradeControllerIntegrationTest {
 
     @Test
     void getHoldingsWhenNoHoldingsExist() throws Exception {
+
         mockMvc.perform(get("/holdings"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$").isEmpty());
@@ -338,13 +365,14 @@ class TradeControllerIntegrationTest {
 
     @Test
     void getHoldingsWhenMultipleHoldingsExist() throws Exception {
+
         Stock secondStock = new Stock();
         secondStock.setName("Second Stock");
         secondStock.setSymbol("SECOND");
         secondStock.setPrice(new BigDecimal("100.00"));
         secondStock = stockRepository.save(secondStock);
 
-        String json = """
+        String firstJson = """
                 {
                     "userId": %d,
                     "stockId": %d,
@@ -354,12 +382,13 @@ class TradeControllerIntegrationTest {
                 """.formatted(user.getId(), stock.getId());
 
         mockMvc.perform(
-                post("/trades")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(json)
-        );
+                        post("/trades")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(firstJson)
+                )
+                .andExpect(status().isOk());
 
-        json = """
+        String secondJson = """
                 {
                     "userId": %d,
                     "stockId": %d,
@@ -369,10 +398,11 @@ class TradeControllerIntegrationTest {
                 """.formatted(user.getId(), secondStock.getId());
 
         mockMvc.perform(
-                post("/trades")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(json)
-        );
+                        post("/trades")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(secondJson)
+                )
+                .andExpect(status().isOk());
 
         mockMvc.perform(get("/holdings"))
                 .andExpect(status().isOk())
@@ -385,6 +415,7 @@ class TradeControllerIntegrationTest {
 
     @Test
     void sellStockAndCheckHolding() throws Exception {
+
         String buyJson = """
                 {
                     "userId": %d,
@@ -395,10 +426,11 @@ class TradeControllerIntegrationTest {
                 """.formatted(user.getId(), stock.getId());
 
         mockMvc.perform(
-                post("/trades")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(buyJson)
-        ).andExpect(status().isOk());
+                        post("/trades")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(buyJson)
+                )
+                .andExpect(status().isOk());
 
         String sellJson = """
                 {
@@ -410,10 +442,11 @@ class TradeControllerIntegrationTest {
                 """.formatted(user.getId(), stock.getId());
 
         mockMvc.perform(
-                post("/trades")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(sellJson)
-        ).andExpect(status().isOk());
+                        post("/trades")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(sellJson)
+                )
+                .andExpect(status().isOk());
 
         mockMvc.perform(get("/holdings"))
                 .andExpect(status().isOk())
@@ -424,6 +457,7 @@ class TradeControllerIntegrationTest {
 
     @Test
     void rejectTradeWithMissingUserId() throws Exception {
+
         String json = """
                 {
                     "stockId": %d,
@@ -433,14 +467,16 @@ class TradeControllerIntegrationTest {
                 """.formatted(stock.getId());
 
         mockMvc.perform(
-                post("/trades")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(json)
-        ).andExpect(status().isBadRequest());
+                        post("/trades")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(json)
+                )
+                .andExpect(status().isBadRequest());
     }
 
     @Test
     void rejectTradeWithMissingStockId() throws Exception {
+
         String json = """
                 {
                     "userId": %d,
@@ -450,14 +486,16 @@ class TradeControllerIntegrationTest {
                 """.formatted(user.getId());
 
         mockMvc.perform(
-                post("/trades")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(json)
-        ).andExpect(status().isBadRequest());
+                        post("/trades")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(json)
+                )
+                .andExpect(status().isBadRequest());
     }
 
     @Test
     void rejectSellingMoreSharesThanOwned() throws Exception {
+
         String buyJson = """
                 {
                     "userId": %d,
@@ -468,10 +506,11 @@ class TradeControllerIntegrationTest {
                 """.formatted(user.getId(), stock.getId());
 
         mockMvc.perform(
-                post("/trades")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(buyJson)
-        ).andExpect(status().isOk());
+                        post("/trades")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(buyJson)
+                )
+                .andExpect(status().isOk());
 
         String sellJson = """
                 {
@@ -483,10 +522,10 @@ class TradeControllerIntegrationTest {
                 """.formatted(user.getId(), stock.getId());
 
         mockMvc.perform(
-                post("/trades")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(sellJson)
-        ).andExpect(status().isBadRequest());
+                        post("/trades")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(sellJson)
+                )
+                .andExpect(status().isBadRequest());
     }
 }
-
