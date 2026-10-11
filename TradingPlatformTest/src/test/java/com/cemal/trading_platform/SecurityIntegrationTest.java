@@ -60,12 +60,5 @@ class SecurityIntegrationTest {
                 .andExpect(status().isOk());
     }
 
-    @Test
-    void userCannotSeeAnotherUsersTrades() throws Exception {
-        mockMvc.perform(AsynchronousFileCacheBacking.ClearCommand
-                        get("/trades")
-                                .with(user("cemal"))
-                )
-                .andExpect(status().isOk());
-    }
+
 }

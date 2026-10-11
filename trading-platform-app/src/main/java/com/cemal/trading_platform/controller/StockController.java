@@ -1,7 +1,9 @@
+
 package com.cemal.trading_platform.controller;
 
 import com.cemal.trading_platform.model.Stock;
 import com.cemal.trading_platform.service.StockService;
+import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -19,16 +21,21 @@ public class StockController {
     public List<Stock> getAllStocks() {
         return stockService.getAllStocks();
     }
+
     @PostMapping("/stocks")
-    public Stock addStock(@RequestBody Stock stock) {
+    public Stock addStock(@Valid @RequestBody Stock stock) {
         return stockService.addStock(stock);
     }
+
     @DeleteMapping("/stocks/{id}")
     public void deleteStock(@PathVariable Long id) {
         stockService.deleteStock(id);
     }
+
     @PutMapping("/stocks/{id}")
-    public Stock updateStock(@PathVariable Long id, @RequestBody Stock stock) {
+    public Stock updateStock(
+            @PathVariable Long id,
+            @Valid @RequestBody Stock stock) {
         return stockService.updateStock(id, stock);
     }
 }

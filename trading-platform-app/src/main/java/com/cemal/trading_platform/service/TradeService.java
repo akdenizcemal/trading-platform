@@ -1,4 +1,5 @@
 package com.cemal.trading_platform.service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.cemal.trading_platform.exception.TradeException;
 import com.cemal.trading_platform.model.*;
@@ -35,7 +36,7 @@ public class TradeService {
     public List<Trade> getAllTrades(String username) {
         return tradeRepository.findByUserUsername(username);
     }
-
+    @Transactional
     public Trade addTrade(Trade trade) {
 
         User user = userRepository.findById(trade.getUser().getId())

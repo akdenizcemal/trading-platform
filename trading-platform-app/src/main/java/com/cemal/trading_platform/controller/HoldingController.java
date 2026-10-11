@@ -1,10 +1,8 @@
 package com.cemal.trading_platform.controller;
 
-
-
 import com.cemal.trading_platform.dto.HoldingResponse;
-import com.cemal.trading_platform.model.Holding;
 import com.cemal.trading_platform.repository.HoldingRepository;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
@@ -21,8 +19,10 @@ public class HoldingController {
     }
 
     @GetMapping
-    public List<HoldingResponse> getAllHoldings() {
-        return holdingRepository.findAll()
+    public List<HoldingResponse> getAllHoldings(
+            Authentication authentication) {
+
+        return holdingRepository.findByUserUsername(authentication.getName())
                 .stream()
                 .map(holding -> new HoldingResponse(
                         holding.getStock().getName(),

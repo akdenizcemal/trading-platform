@@ -1,36 +1,31 @@
-package com.cemal.trading_platform.controller;
 
+package com.cemal.trading_platform.controller;
 
 import com.cemal.trading_platform.dto.UserResponse;
 import com.cemal.trading_platform.model.User;
 import com.cemal.trading_platform.service.UserService;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
+import com.cemal.trading_platform.dto.RegisterRequest;
+import java.math.BigDecimal;
 
 @RestController
+@RequestMapping("/users")
 public class UserController {
+
     private final UserService userService;
 
     public UserController(UserService userService) {
         this.userService = userService;
     }
 
-    @GetMapping("/users")
-    public List<UserResponse> getAllUsers() {
-        return userService.getAllUsers()
-                .stream()
-                .map(user -> new UserResponse(
-                        user.getId(),
-                        user.getUsername(),
-                        user.getEmail(),
-                        user.getBalance()
-                ))
-                .toList();
-    }
+    @PostMapping
+    public UserResponse addUser(@RequestBody RegisterRequest request) {
+        User user = new User();
+        user.setUsername(request.username());
+        user.setEmail(request.email());
+        user.setPassword(request.password());
+        user.setBalance(new BigDecimal("10000.00"));
 
-    @PostMapping("/users")
-    public UserResponse addUser(@RequestBody User user) {
         User savedUser = userService.addUser(user);
 
         return new UserResponse(
@@ -39,13 +34,5 @@ public class UserController {
                 savedUser.getEmail(),
                 savedUser.getBalance()
         );
-    }
-    @DeleteMapping("/users/{id}")
-    public void deleteUser(@PathVariable Long id) {
-        userService.deleteUser(id);
-    }
-    @PutMapping("/users/{id}")
-    public User updateUser(@PathVariable Long id, @RequestBody User user) {
-        return userService.updateUser(id, user);
     }
 }
